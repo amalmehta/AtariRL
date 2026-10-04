@@ -4,7 +4,11 @@ The 2013 paper has no separate target network: the target
     y = r + gamma * max_a' Q(s', a'; theta)
 is computed with the current weights, held fixed (no gradient) for the update.
 The loss is the squared error (y - Q(s, a; theta))^2.
+
+Optionally (cfg.target_update > 0) the target uses a frozen copy of the
+weights, refreshed every cfg.target_update steps: the 2015 Nature change.
 """
+import copy
 from collections import deque
 
 import numpy as np
@@ -41,6 +45,12 @@ class DQNAgent:
             self.net.parameters(), lr=cfg.lr, alpha=cfg.rms_alpha, eps=cfg.rms_eps, centered=True
         )
         self.rng = np.random.default_rng(seed)
+        self.target_net = copy.deepcopy(self.net) if cfg.target_update > 0 else None
+
+    def sync_target(self):
+        """Copy the online weights into the frozen target network."""
+        if self.target_net is not None:
+            self.target_net.load_state_dict(self.net.state_dict())
 
     def epsilon(self, step: int) -> float:
         """Linear anneal from eps_start to eps_end, then constant."""
@@ -58,7 +68,8 @@ class DQNAgent:
 
     def td_targets(self, rewards, next_states, dones) -> torch.Tensor:
         with torch.no_grad():
-            next_max = self.net(next_states).max(dim=1).values
+            net = self.target_net if self.target_net is not None else self.net
+            next_max = net(next_states).max(dim=1).values
         return rewards + self.cfg.gamma * next_max * (1.0 - dones)
 
     def learn(self, batch) -> float:
@@ -81,3 +92,4 @@ class DQNAgent:
 
     def load(self, path):
         self.net.load_state_dict(torch.load(path, map_location="cpu")["net"])
+        self.sync_target()

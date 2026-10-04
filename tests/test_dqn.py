@@ -112,6 +112,25 @@ def test_td_target_masks_terminal_states():
     assert torch.allclose(y, torch.tensor([1.0 + 0.5 * 4.0, 1.0]))
 
 
+def test_target_network_frozen_until_sync():
+    agent = DQNAgent(3, Config(target_update=100))
+    rng = np.random.default_rng(1)
+    batch = (rng.integers(0, 255, (32, 4, 84, 84), dtype=np.uint8), rng.integers(0, 3, 32),
+             np.ones(32, dtype=np.float32), rng.integers(0, 255, (32, 4, 84, 84), dtype=np.uint8),
+             np.zeros(32, dtype=bool))
+    states = torch.from_numpy(batch[3])
+    before = agent.target_net(states).detach().clone()
+    agent.learn(batch)
+    assert torch.equal(agent.target_net(states), before)          # target unchanged by learning
+    assert not torch.equal(agent.net(states), before)             # online net moved
+    agent.sync_target()
+    assert torch.equal(agent.target_net(states), agent.net(states))
+
+
+def test_no_target_network_by_default():
+    assert DQNAgent(3, Config()).target_net is None
+
+
 def test_learning_reduces_loss_on_fixed_batch():
     agent = DQNAgent(3, Config(gamma=0.0, lr=1e-3))
     rng = np.random.default_rng(0)

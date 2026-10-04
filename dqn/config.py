@@ -27,6 +27,7 @@ class Config:
     rms_eps: float = 0.01          # RMSProp min squared gradient (Nature)
     update_every: int = 1          # Algorithm 1 does one minibatch update per step
     replay_start: int = 50_000     # not in 2013 (Nature value): random play before learning
+    target_update: int = 0         # not in 2013: steps between target-network refreshes (0 = none, as in 2013)
 
     # Exploration (Section 5)
     eps_start: float = 1.0

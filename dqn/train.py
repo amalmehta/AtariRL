@@ -110,6 +110,9 @@ def train(cfg: Config, out: Path, log_every: int = 10_000):
         if step >= cfg.replay_start and step % cfg.update_every == 0:
             losses.append(agent.learn(memory.sample(cfg.batch_size)))
 
+        if cfg.target_update and step % cfg.target_update == 0:
+            agent.sync_target()
+
         if step % log_every == 0:
             rate = step / (time.time() - start)
             loss = np.mean(losses) if losses else float("nan")
@@ -150,12 +153,14 @@ def main():
     p.add_argument("--lr", type=float, default=Config.lr)
     p.add_argument("--update-every", type=int, default=Config.update_every,
                    help="agent steps between minibatch updates (paper: 1)")
+    p.add_argument("--target-update", type=int, default=Config.target_update,
+                   help="steps between target-network refreshes; 0 = none (paper: 0)")
     a = p.parse_args()
     cfg = Config(game=a.game, seed=a.seed, total_steps=a.steps, threads=a.threads,
                  frame_skip=frame_skip_for(a.game), replay_capacity=a.replay_capacity,
                  replay_start=a.replay_start, eps_anneal_steps=a.eps_anneal_steps,
                  eval_every=a.eval_every, eval_steps=a.eval_steps, lr=a.lr,
-                 update_every=a.update_every)
+                 update_every=a.update_every, target_update=a.target_update)
     train(cfg, a.out or Path("runs") / a.game)
 
 

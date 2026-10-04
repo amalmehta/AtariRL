@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atari DQN, Rebuilt</title>
+<meta name="description" content="DeepMind's 2013 'Playing Atari with Deep Reinforcement Learning' rebuilt from scratch in PyTorch, with every piece explained.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%232a78d6'/><rect x='3' y='5' width='2' height='6' fill='white'/><rect x='11' y='4' width='2' height='6' fill='white'/><rect x='7.5' y='7.5' width='2' height='2' fill='white'/></svg>">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #fcfcfb;
+  --surface: #ffffff;
+  --surface-2: #f4f3f0;
+  --border: #e5e4e0;
+  --text: #0b0b0b;
+  --text-2: #52514e;
+  --text-3: #7a7974;
+  --grid: #ecebe7;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --muted-mark: #c9c8c2;
+  --code-bg: #f4f3f0;
+  --accent: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #141413;
+    --surface: #1a1a19;
+    --surface-2: #222220;
+    --border: #33332f;
+    --text: #ffffff;
+    --text-2: #c3c2b7;
+    --text-3: #8f8e86;
+    --grid: #2a2a27;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --muted-mark: #4a4a45;
+    --code-bg: #222220;
+    --accent: #6da7ec;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #141413;
+  --surface: #1a1a19;
+  --surface-2: #222220;
+  --border: #33332f;
+  --text: #ffffff;
+  --text-2: #c3c2b7;
+  --text-3: #8f8e86;
+  --grid: #2a2a27;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --muted-mark: #4a4a45;
+  --code-bg: #222220;
+  --accent: #6da7ec;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; } @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 17px/1.65 Inter, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); }
+.wrap { max-width: 860px; margin: 0 auto; padding: 0 16px; }
+.wide { max-width: 1100px; }
+header.top {
+  position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px); border-bottom: 1px solid var(--border);
+}
+header.top .wrap { display: flex; align-items: center; gap: 20px; height: 52px; }
+.brand { font: 11px "Press Start 2P", monospace; color: var(--text); text-decoration: none; white-space: nowrap; }
+nav.toc { display: flex; gap: 16px; overflow-x: auto; font-size: 14px; scrollbar-width: none; flex: 1; }
+nav.toc a { color: var(--text-2); text-decoration: none; white-space: nowrap; }
+nav.toc a:hover { color: var(--text); }
+.theme-btn { background: none; border: 1px solid var(--border); color: var(--text-2); border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 13px; }
+.hero { padding: 64px 0 24px; }
+.eyebrow { font: 10px "Press Start 2P", monospace; color: var(--series-2); letter-spacing: .04em; }
+h1 { font-size: clamp(32px, 6vw, 52px); line-height: 1.1; margin: 16px 0; letter-spacing: -0.02em; }
+h2 { font-size: 30px; line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.01em; }
+h3 { font-size: 19px; margin: 28px 0 8px; }
+.lede { font-size: 20px; color: var(--text-2); max-width: 680px; }
+section { padding: 56px 0; border-top: 1px solid var(--border); }
+.step-no { font: 10px "Press Start 2P", monospace; color: var(--text-3); margin-bottom: 14px; display: block; }
+p { margin: 0 0 16px; }
+.muted { color: var(--text-2); }
+.small { font-size: 14px; }
+code, pre { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 14px; }
+:not(pre) > code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; line-height: 1.55; margin: 0 0 16px; }
+.k { color: var(--series-1); font-weight: 600; }
+.c { color: var(--text-3); }
+.games { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 250px)); gap: 16px; margin-top: 32px; }
+.game-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.game-card video, .game-card img { display: block; width: 100%; image-rendering: pixelated; background: #000; aspect-ratio: 160/210; object-fit: contain; }
+.game-card .cap { padding: 10px 14px; font-size: 14px; display: flex; justify-content: space-between; gap: 8px; }
+.game-card .cap b { font-variant-numeric: tabular-nums; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 24px 0; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.stat .v { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat .l { font-size: 13px; color: var(--text-2); }
+figure { margin: 24px 0; }
+figcaption { font-size: 14px; color: var(--text-2); margin-top: 10px; }
+.pipeline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.pipeline .stage { text-align: center; font-size: 13px; color: var(--text-2); }
+.pipeline .stage img { display: block; image-rendering: pixelated; border-radius: 4px; border: 1px solid var(--border); margin: 0 auto 6px; }
+.pipeline .arrow { color: var(--text-3); font-size: 22px; }
+@media (max-width: 600px) {
+  .pipeline { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 8px; }
+  .pipeline .arrow { display: none; }
+  .pipeline .stage img { width: 100%; height: auto; max-width: 150px; }
+  .stack { transform: scale(.85); transform-origin: top center; }
+}
+.stack { position: relative; width: 150px; height: 168px; margin: 0 auto 6px; }
+.stack img { position: absolute; width: 126px; height: 126px; border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.callout { border-left: 3px solid var(--series-1); background: var(--surface); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+.math { overflow-x: auto; overflow-y: hidden; padding: 4px 0; margin: 8px 0 16px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 720px) { .two { grid-template-columns: 1fr; } }
+table { border-collapse: collapse; width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 600; color: var(--text-2); font-size: 13px; }
+.table-wrap { overflow-x: auto; }
+/* charts */
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart .axis text, .chart .ref text { font: 11px Inter, sans-serif; fill: var(--text-3); }
+.chart .axis line, .chart .axis path { stroke: var(--border); }
+.chart .gridline { stroke: var(--grid); }
+.chart .ref line { stroke: var(--text-3); stroke-dasharray: 3 4; }
+.chart .title { font: 600 14px Inter, sans-serif; fill: var(--text); }
+.chart .dlabel { font: 500 12px Inter, sans-serif; fill: var(--text-2); }
+.chart .hair { stroke: var(--text-3); stroke-width: 1; }
+.tip {
+  position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  white-space: nowrap; opacity: 0; transition: opacity .1s; z-index: 5;
+}
+.tip .row { display: flex; align-items: center; gap: 8px; }
+.tip .key { width: 12px; height: 2px; border-radius: 1px; }
+.tip strong { font-variant-numeric: tabular-nums; }
+.tip .hd { color: var(--text-3); margin-bottom: 4px; }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--text-2); margin: 4px 0 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 14px; height: 2px; display: inline-block; border-radius: 1px; }
+.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 760px) { .chart-grid { grid-template-columns: 1fr; } }
+/* value-function player */
+.player { display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: start; }
+@media (max-width: 720px) { .player { grid-template-columns: 1fr; } .player video { max-width: 260px; margin: 0 auto; } }
+.player video { width: 100%; image-rendering: pixelated; border-radius: 8px; background: #000; display: block; }
+.controls { display: flex; gap: 10px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
+.controls button, .seg button {
+  background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 6px;
+  padding: 6px 12px; font: 500 13px Inter, sans-serif; cursor: pointer;
+}
+.seg { display: inline-flex; gap: 0; }
+.seg button { border-radius: 0; }
+.seg button:first-child { border-radius: 6px 0 0 6px; }
+.seg button:last-child { border-radius: 0 6px 6px 0; }
+.seg button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.controls input[type=range] { flex: 1; min-width: 120px; accent-color: var(--series-1); }
+.qbars { display: grid; gap: 4px; margin-top: 12px; }
+.qbar { display: grid; grid-template-columns: 96px 1fr 56px; align-items: center; gap: 8px; font-size: 12px; }
+.qbar .n { font-family: "JetBrains Mono", monospace; color: var(--text-2); }
+.qbar .track { height: 12px; position: relative; }
+.qbar .fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--muted-mark); border-radius: 0 4px 4px 0; transition: width .08s; }
+.qbar.on .fill { background: var(--series-1); }
+.qbar .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.qbar.on .n, .qbar.on .val { color: var(--text); font-weight: 600; }
+/* diagrams */
+.diagram svg { width: 100%; height: auto; display: block; }
+.diagram .box { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; }
+.diagram .box.hl { stroke: var(--series-1); }
+.diagram text { font: 13px Inter, sans-serif; fill: var(--text); }
+.diagram .sub { font-size: 11px; fill: var(--text-3); }
+.diagram .edge { stroke: var(--text-3); stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+.diagram .elabel { font-size: 11px; fill: var(--text-2); }
+.layer { fill: color-mix(in srgb, var(--series-1) 14%, var(--surface)); stroke: var(--series-1); stroke-width: 1.2; }
+.layer.in { fill: var(--surface-2); stroke: var(--text-3); }
+.layer.out { fill: color-mix(in srgb, var(--series-2) 16%, var(--surface)); stroke: var(--series-2); }
+ol.algo { counter-reset: line; list-style: none; padding: 16px 16px 16px 48px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; font-size: 15px; margin: 0 0 16px; }
+ol.algo li { counter-increment: line; position: relative; padding: 3px 0; }
+ol.algo li::before { content: counter(line); position: absolute; left: -32px; color: var(--text-3); font: 12px "JetBrains Mono", monospace; top: 6px; }
+ol.algo li.i1 { padding-left: 22px; } ol.algo li.i2 { padding-left: 44px; }
+ol.algo a { font: 12px "JetBrains Mono", monospace; margin-left: 8px; text-decoration: none; }
+.diffs li { margin-bottom: 10px; }
+footer { border-top: 1px solid var(--border); padding: 40px 0 64px; font-size: 14px; color: var(--text-2); }
+.btn { display: inline-block; padding: 10px 16px; border-radius: 8px; background: var(--text); color: var(--bg); text-decoration: none; font-weight: 600; font-size: 15px; }
+.btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+.cta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; }
+.pending { color: var(--text-3); font-style: italic; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap wide">
+    <a class="brand" href="#">ATARI DQN</a>
+    <nav class="toc">
+      <a href="#loop">The loop</a>
+      <a href="#see">Seeing</a>
+      <a href="#net">Network</a>
+      <a href="#learn">Learning</a>
+      <a href="#replay">Replay</a>
+      <a href="#explore">Exploring</a>
+      <a href="#algo">Algorithm</a>
+      <a href="#results">Results</a>
+      <a href="#mind">Inside its head</a>
+      <a href="#diffs">Differences</a>
+      <a href="#run">Run it</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" aria-label="Toggle dark mode">◐</button>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+  <div class="hero">
+    <div class="eyebrow">MNIH ET AL. · 2013 · REBUILT</div>
+    <h1>Teaching a neural network to play Atari from pixels alone</h1>
+    <p class="lede">In 2013 DeepMind showed that one algorithm, with no game-specific knowledge, could learn to play Atari games
+      just by watching the screen and the score. This is that paper rebuilt from scratch in about 500 lines of Python,
+      trained on a laptop CPU, with every piece explained.</p>
+    <div class="games">
+      <div class="game-card"><video id="heroPong" src="assets/pong.mp4" poster="assets/preprocess_1_raw.png" muted loop playsinline autoplay></video>
+        <div class="cap"><span>Pong</span><span class="muted" id="heroPongCap"></span></div></div>
+      <div class="game-card"><video id="heroBreakout" src="assets/breakout.mp4" muted loop playsinline autoplay></video>
+        <div class="cap"><span>Breakout</span><span class="muted" id="heroBreakoutCap"></span></div></div>
+    </div>
+    <p class="small muted" style="margin-top:10px">The trained agents playing one episode each, at real speed. They choose a new action every 4th frame and still pick a random action 5% of the time, as in the paper's evaluation.</p>
+    <div class="cta">
+      <a class="btn" href="https://github.com/amalmehta/AtariRL">The code on GitHub</a>
+      <a class="btn ghost" href="https://arxiv.org/abs/1312.5602">The original paper</a>
+    </div>
+  </div>
+</div>
+
+<section id="loop"><div class="wrap">
+  <span class="step-no">THE BIG PICTURE</span>
+  <h2>One loop, repeated millions of times</h2>
+  <p>The agent never sees the game's code, the position of the ball, or the rules. It gets the same thing a person
+    gets: the picture on the screen, and the score going up or down. Everything it learns, it learns from that.</p>
+  <figure class="diagram">
+    <svg viewBox="0 -4 820 320" role="img" aria-label="Diagram of the training loop: the emulator sends screens to preprocessing, which feeds the Q-network; the network picks an action that goes back to the emulator; each transition is stored in replay memory, which supplies random minibatches to train the network.">
+      <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--text-3)"/></marker></defs>
+      <rect class="box" x="20" y="40" width="170" height="74" rx="10"/>
+      <text x="105" y="72" text-anchor="middle" font-weight="600">Atari emulator</text>
+      <text x="105" y="94" text-anchor="middle" class="sub">Arcade Learning Environment</text>
+      <rect class="box" x="300" y="40" width="190" height="74" rx="10"/>
+      <text x="395" y="72" text-anchor="middle" font-weight="600">Preprocess φ</text>
+      <text x="395" y="94" text-anchor="middle" class="sub">grey · shrink · crop · stack 4</text>
+      <rect class="box hl" x="600" y="40" width="200" height="74" rx="10"/>
+      <text x="700" y="72" text-anchor="middle" font-weight="600">Q-network</text>
+      <text x="700" y="94" text-anchor="middle" class="sub">a score for every action</text>
+      <rect class="box" x="300" y="226" width="190" height="74" rx="10"/>
+      <text x="395" y="258" text-anchor="middle" font-weight="600">Replay memory</text>
+      <text x="395" y="280" text-anchor="middle" class="sub">last 1M transitions</text>
+      <path class="edge" d="M190,66 L298,66"/><text x="244" y="58" text-anchor="middle" class="elabel">screen</text>
+      <path class="edge" d="M490,66 L598,66"/><text x="544" y="58" text-anchor="middle" class="elabel">state s</text>
+      <path class="edge" d="M700,40 C700,2 105,2 105,38"/><text x="410" y="28" text-anchor="middle" class="elabel">action a = argmax Q (or random, with probability ε)</text>
+      <path class="edge" d="M160,114 C190,250 250,262 298,262"/><text x="168" y="236" class="elabel">(s, a, r, s′)</text>
+      <path class="edge" d="M490,262 C600,262 700,230 700,116"/><text x="612" y="282" class="elabel">random minibatch of 32</text>
+      <text x="612" y="298" class="elabel">→ gradient step</text>
+    </svg>
+  </figure>
+  <p>Each turn: look at the screen, pick a button, see what happens to the score. Store that experience. Then pull 32 random old
+    experiences out of memory and nudge the network so its predictions about them get a little more accurate.
+    The rest of this page goes through each box.</p>
+</div></section>
+
+<section id="see"><div class="wrap">
+  <span class="step-no">STEP 1 · WHAT THE AGENT SEES</span>
+  <h2>From a 210×160 colour screen to an 84×84×4 stack</h2>
+  <p>A raw Atari frame has 100,800 colour values, and a single frame can't tell you which way the ball is moving.
+    The paper's preprocessing function <code>φ</code> shrinks the input and adds motion:</p>
+  <figure>
+    <div class="pipeline">
+      <div class="stage"><img src="assets/preprocess_1_raw.png" width="160" height="210" alt="Raw colour Pong frame">Raw 210×160 RGB</div>
+      <div class="arrow">→</div>
+      <div class="stage"><img src="assets/preprocess_2_gray.png" width="160" height="210" alt="Greyscale Pong frame">Greyscale</div>
+      <div class="arrow">→</div>
+      <div class="stage"><img src="assets/preprocess_3_small.png" width="168" height="220" alt="Pong frame shrunk to 110 by 84 with the crop marked">110×84, crop marked</div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="stack">
+        <img src="assets/preprocess_4_stack0.png" style="left:0;top:0" alt="">
+        <img src="assets/preprocess_4_stack1.png" style="left:8px;top:14px" alt="">
+        <img src="assets/preprocess_4_stack2.png" style="left:16px;top:28px" alt="">
+        <img src="assets/preprocess_4_stack3.png" style="left:24px;top:42px" alt="Four stacked 84 by 84 frames">
+      </div>Last 4 frames, 84×84</div>
+    </div>
+    <figcaption>A real moment from Pong at each stage. The orange lines mark the 84×84 square that is kept: the playing field, without the score.</figcaption>
+  </figure>
+  <h3>Frame skipping</h3>
+  <p>The Atari runs at 60 frames a second. The agent only looks and decides every <b>4th</b> frame, and its chosen button is held
+    down for the frames in between (Space Invaders uses 3, so its blinking lasers don't vanish). That makes play 4× cheaper
+    with almost no loss, since nothing important happens in 1/60 of a second. The rewards from the skipped frames are added up.</p>
+  <h3>Reward clipping</h3>
+  <p>Scores differ wildly between games: a point in Pong, hundreds in Space Invaders. So every positive reward becomes <b>+1</b>,
+    every negative one <b>−1</b>, and zero stays zero. One learning rate then works for every game, at the cost of the agent
+    not knowing a big reward from a small one.</p>
+  <p class="small muted">Code: <a href="https://github.com/amalmehta/AtariRL/blob/main/dqn/env.py">dqn/env.py</a> talks to the emulator directly and implements all of the above in ~60 lines.</p>
+</div></section>
+
+<section id="net"><div class="wrap">
+  <span class="step-no">STEP 2 · THE Q-NETWORK</span>
+  <h2>A small convolutional network that scores every button at once</h2>
+  <p>The network's job is to answer: <i>"If I press this button now and play well afterwards, how much reward will I collect?"</i>
+    That number is called <b>Q(s, a)</b>, the <i>action value</i>. Instead of asking the network once per button, it outputs
+    a Q-value for every legal button in one pass, and the agent presses the highest.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 820 250" role="img" aria-label="Network architecture: input 4 by 84 by 84, convolution 16 filters 8 by 8 stride 4 to 16 by 20 by 20, convolution 32 filters 4 by 4 stride 2 to 32 by 9 by 9, fully connected 256, output one value per action.">
+      <g transform="translate(20,40)">
+        <rect class="layer in" x="0" y="0" width="110" height="110" rx="3"/><rect class="layer in" x="8" y="8" width="110" height="110" rx="3"/><rect class="layer in" x="16" y="16" width="110" height="110" rx="3"/><rect class="layer in" x="24" y="24" width="110" height="110" rx="3"/>
+        <text x="80" y="160" text-anchor="middle" font-weight="600">Input</text><text x="80" y="178" text-anchor="middle" class="sub">4 × 84 × 84</text>
+      </g>
+      <g transform="translate(205,62)">
+        <rect class="layer" x="0" y="0" width="64" height="64" rx="3"/><rect class="layer" x="6" y="6" width="64" height="64" rx="3"/><rect class="layer" x="12" y="12" width="64" height="64" rx="3"/><rect class="layer" x="18" y="18" width="64" height="64" rx="3"/>
+        <text x="42" y="138" text-anchor="middle" font-weight="600">Conv 1</text><text x="42" y="156" text-anchor="middle" class="sub">16 filters 8×8, stride 4</text><text x="42" y="172" text-anchor="middle" class="sub">→ 16 × 20 × 20, ReLU</text>
+      </g>
+      <g transform="translate(365,78)">
+        <rect class="layer" x="0" y="0" width="36" height="36" rx="2"/><rect class="layer" x="5" y="5" width="36" height="36" rx="2"/><rect class="layer" x="10" y="10" width="36" height="36" rx="2"/><rect class="layer" x="15" y="15" width="36" height="36" rx="2"/><rect class="layer" x="20" y="20" width="36" height="36" rx="2"/>
+        <text x="28" y="122" text-anchor="middle" font-weight="600">Conv 2</text><text x="28" y="140" text-anchor="middle" class="sub">32 filters 4×4, stride 2</text><text x="28" y="156" text-anchor="middle" class="sub">→ 32 × 9 × 9, ReLU</text>
+      </g>
+      <g transform="translate(520,30)">
+        <rect class="layer" x="0" y="0" width="22" height="150" rx="4"/>
+        <text x="11" y="182" text-anchor="middle" font-weight="600">Dense</text><text x="11" y="200" text-anchor="middle" class="sub">256, ReLU</text>
+      </g>
+      <g transform="translate(640,48)">
+        <rect class="layer out" x="0" y="0" width="22" height="18" rx="3"/><rect class="layer out" x="0" y="22" width="22" height="18" rx="3"/><rect class="layer out" x="0" y="44" width="22" height="18" rx="3"/><rect class="layer out" x="0" y="66" width="22" height="18" rx="3"/><rect class="layer out" x="0" y="88" width="22" height="18" rx="3"/><rect class="layer out" x="0" y="110" width="22" height="18" rx="3"/>
+        <text x="32" y="13" class="sub">Q(s, NOOP)</text><text x="32" y="35" class="sub">Q(s, FIRE)</text><text x="32" y="57" class="sub">Q(s, RIGHT)</text><text x="32" y="79" class="sub">Q(s, LEFT)</text><text x="32" y="101" class="sub">…</text>
+        <text x="11" y="164" text-anchor="middle" font-weight="600">Output</text><text x="11" y="182" text-anchor="middle" class="sub">one per action</text>
+      </g>
+      <path class="edge" d="M162,105 L200,105"/><path class="edge" d="M305,105 L360,105"/><path class="edge" d="M440,105 L515,105"/><path class="edge" d="M545,105 L635,105"/>
+    </svg>
+  </figure>
+  <div class="stats">
+    <div class="stat"><div class="v">2</div><div class="l">convolutional layers</div></div>
+    <div class="stat"><div class="v" id="paramCount">~680k</div><div class="l">weights in total (Pong)</div></div>
+    <div class="stat"><div class="v">4–18</div><div class="l">outputs, one per legal button</div></div>
+  </div>
+  <p>The convolutions learn to find things like the ball and the paddles; the stack of four frames lets them see motion.
+    The same architecture and hyperparameters are used for every game: only the number of outputs changes.</p>
+  <pre><span class="k">class</span> QNetwork(nn.Module):
+    <span class="k">def</span> __init__(self, n_actions, history=4):
+        self.features = nn.Sequential(
+            nn.Conv2d(history, 16, kernel_size=8, stride=4), nn.ReLU(),
+            nn.Conv2d(16, 32, kernel_size=4, stride=2), nn.ReLU(),
+            nn.Flatten())
+        self.head = nn.Sequential(
+            nn.Linear(32 * 9 * 9, 256), nn.ReLU(),
+            nn.Linear(256, n_actions))</pre>
+  <p class="small muted">Code: <a href="https://github.com/amalmehta/AtariRL/blob/main/dqn/model.py">dqn/model.py</a></p>
+</div></section>
+
+<section id="learn"><div class="wrap">
+  <span class="step-no">STEP 3 · LEARNING FROM ITS OWN GUESSES</span>
+  <h2>Q-learning: make today's guess agree with tomorrow's</h2>
+  <p>Nobody tells the agent what the right Q-values are. The trick is the <b>Bellman equation</b>: the value of pressing a button now
+    equals the reward you get right away, plus the (discounted) value of the best thing you can do next.</p>
+  <div class="math" data-tex="Q^*(s,a) \;=\; \mathbb{E}\Big[\, r + \gamma \max_{a'} Q^*(s', a') \,\Big]"></div>
+  <p>So after each experience <code>(s, a, r, s′)</code> we have a slightly better estimate than the network's own guess,
+    called the <b>target</b>, and we train the network to move towards it:</p>
+  <div class="math" data-tex="y = \begin{cases} r & \text{if the game ended} \\ r + \gamma \max_{a'} Q(s', a'; \theta) & \text{otherwise}\end{cases}
+  \qquad L(\theta) = \big(y - Q(s,a;\theta)\big)^2"></div>
+  <p>γ = 0.99 is the <i>discount</i>: a reward one step away is worth 99% of a reward now, so the agent cares about the future but prefers sooner.
+    The target uses the same network but is held fixed while taking the gradient step (no gradient flows through <code>y</code>).
+    The 2013 paper has no separate "target network"; that came in the 2015 follow-up.</p>
+  <div class="callout" id="tdExample">
+    <b>A worked example from the trained Pong agent.</b> <span class="pending">Loading…</span>
+  </div>
+  <pre><span class="k">def</span> td_targets(self, rewards, next_states, dones):
+    <span class="k">with</span> torch.no_grad():
+        next_max = self.net(next_states).max(dim=1).values
+    <span class="k">return</span> rewards + self.cfg.gamma * next_max * (1.0 - dones)
+
+<span class="k">def</span> learn(self, batch):
+    targets = self.td_targets(rewards, next_states, dones)
+    q = self.net(states).gather(1, actions.unsqueeze(1)).squeeze(1)
+    loss = mse_loss(q, targets)          <span class="c"># (y - Q(s,a))^2</span>
+    loss.backward(); self.optimizer.step()  <span class="c"># RMSProp</span></pre>
+  <p class="small muted">Code: <a href="https://github.com/amalmehta/AtariRL/blob/main/dqn/agent.py">dqn/agent.py</a></p>
+</div></section>
+
+<section id="replay"><div class="wrap">
+  <span class="step-no">STEP 4 · EXPERIENCE REPLAY</span>
+  <h2>Learning from a shuffled memory, not the last few seconds</h2>
+  <p>If the network trained on experiences in the order they happened, every minibatch would be 32 nearly identical frames from the
+    same rally. The updates would be strongly correlated, and the network would chase whatever it saw last and forget the rest.
+    The paper's fix, and its key idea:</p>
+  <div class="two">
+    <div class="card"><b>Store</b><p class="muted small" style="margin:6px 0 0">Every transition (s, a, r, s′) goes into a memory holding the most recent
+      1,000,000. Old ones fall off the end.</p></div>
+    <div class="card"><b>Sample</b><p class="muted small" style="margin:6px 0 0">Each update draws 32 transitions <i>uniformly at random</i> from the whole memory.
+      They come from different moments and different games, so they're far less correlated, and each experience gets reused many times.</p></div>
+  </div>
+  <h3>Fitting a million states in memory</h3>
+  <p>A million stacks of four 84×84 frames would be 28 GB. But consecutive states share three of their four frames, so the memory stores
+    each frame <b>once</b> (7 GB for a million) and rebuilds the stack of four when it samples. Near the start of an episode the
+    missing older frames are filled with the episode's first frame, exactly as the agent does while playing.</p>
+  <p class="small muted">Code: <a href="https://github.com/amalmehta/AtariRL/blob/main/dqn/replay.py">dqn/replay.py</a>, with tests for episode boundaries and wrap-around in
+    <a href="https://github.com/amalmehta/AtariRL/blob/main/tests/test_dqn.py">tests/test_dqn.py</a>.</p>
+</div></section>
+
+<section id="explore"><div class="wrap">
+  <span class="step-no">STEP 5 · EXPLORATION</span>
+  <h2>ε-greedy: mostly greedy, sometimes random</h2>
+  <p>An agent that always presses its current favourite button never finds out whether the others are better. So with probability
+    <b>ε</b> it presses a random button instead. ε starts at 1 (pure random play, since the untrained network knows nothing) and falls
+    linearly to 0.1 over the first million frames, then stays there. Evaluation uses ε = 0.05.</p>
+  <figure>
+    <div class="chart" id="epsChart"></div>
+    <figcaption>Exploration rate over training, in agent steps (1 step = 4 frames, so 250k steps = 1M frames).</figcaption>
+  </figure>
+</div></section>
+
+<section id="algo"><div class="wrap">
+  <span class="step-no">PUTTING IT TOGETHER</span>
+  <h2>Algorithm 1, line by line</h2>
+  <p>This is the paper's whole algorithm. Each line links to where it lives in the code.</p>
+  <ol class="algo">
+    <li>Initialise replay memory D with capacity N <a href="https://github.com/amalmehta/AtariRL/blob/main/dqn/replay.py">replay.py</a></li>
+    <li>Initialise Q with random weights <a href="https://github.com/amalmehta/AtariRL/blob/main/dqn/model.py">model.py</a></li>
+    <li><b>for</b> episode = 1 … M <b>do</b></li>
+    <li class="i1">Reset the game; s₁ = φ(first screen), padded to 4 frames <a href="https://github.com/amalmehta/AtariRL/blob/main/dqn/agent.py">FrameHistory</a></li>
+    <li class="i1"><b>for</b> t = 1 … T <b>do</b></li>
+    <li class="i2">With probability ε pick a random action, else aₜ = argmaxₐ Q(sₜ, a) <a href="https://github.com/amalmehta/AtariRL/blob/main/dqn/agent.py">act()</a></li>
+    <li class="i2">Repeat aₜ for k frames; observe reward rₜ and next screen <a href="https://github.com/amalmehta/AtariRL/blob/main/dqn/env.py">step()</a></li>
+    <li class="i2">sₜ₊₁ = φ(last 4 screens); store (sₜ, aₜ, clip(rₜ), sₜ₊₁) in D <a href="https://github.com/amalmehta/AtariRL/blob/main/dqn/train.py">train.py</a></li>
+    <li class="i2">Sample a random minibatch of 32 transitions from D <a href="https://github.com/amalmehta/AtariRL/blob/main/dqn/replay.py">sample()</a></li>
+    <li class="i2">Set yⱼ = rⱼ if the episode ended, else rⱼ + γ maxₐ′ Q(sⱼ₊₁, a′) <a href="https://github.com/amalmehta/AtariRL/blob/main/dqn/agent.py">td_targets()</a></li>
+    <li class="i2">Gradient step on (yⱼ − Q(sⱼ, aⱼ))² with RMSProp <a href="https://github.com/amalmehta/AtariRL/blob/main/dqn/agent.py">learn()</a></li>
+  </ol>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Hyperparameter</th><th>Paper (2013)</th><th>Here</th></tr></thead>
+    <tbody>
+      <tr><td>Minibatch size</td><td>32</td><td>32</td></tr>
+      <tr><td>Replay memory</td><td>1M</td><td>1M (Breakout) · 500k (Pong)</td></tr>
+      <tr><td>Frame skip k</td><td>4 (3 for Space Invaders)</td><td>4</td></tr>
+      <tr><td>ε schedule</td><td>1 → 0.1 over first 1M frames</td><td>1 → 0.1 over 250k steps (= 1M frames)</td></tr>
+      <tr><td>Optimiser</td><td>RMSProp</td><td>RMSProp, lr 2.5×10⁻⁴ *</td></tr>
+      <tr><td>Discount γ</td><td>not stated</td><td>0.99 *</td></tr>
+      <tr><td>Updates</td><td>every step</td><td>every 4th step *</td></tr>
+      <tr><td>Training length</td><td>10M frames per game</td><td><span id="hpLen">see results</span></td></tr>
+    </tbody>
+  </table></div>
+  <p class="small muted" style="margin-top:8px">* Not specified in 2013 or changed for CPU time; values from DeepMind's 2015 Nature paper. See <a href="#diffs">Differences</a>.</p>
+</div></section>
+
+<section id="results"><div class="wrap wide">
+  <div class="wrap" style="padding:0">
+  <span class="step-no">RESULTS</span>
+  <h2>Does it work on a laptop?</h2>
+  <p id="resultsLede">Each chart shows one game. Every 50,000 steps training paused and the agent played 10,000 steps with ε = 0.05;
+    the blue line is its average score per episode. The orange line is the score of the training episodes themselves (with
+    exploration, so lower). Dashed lines are the paper's reference scores.</p>
+  </div>
+  <div class="legend"><span><i style="background:var(--series-1)"></i>Evaluation (ε = 0.05)</span><span><i style="background:var(--series-2)"></i>Training episodes (rolling mean of 20)</span></div>
+  <div class="chart-grid">
+    <div class="chart" id="scorePong"></div>
+    <div class="chart" id="scoreBreakout"></div>
+  </div>
+  <div class="wrap" style="padding:0">
+  <h3>The paper's Figure 2: average predicted value</h3>
+  <p>Scores are noisy: one lucky rally changes them a lot. The paper also tracked a smoother signal: before training, collect a fixed set
+    of 500 states with random play, and after each epoch average the network's highest Q-value over them. It should rise steadily as
+    the agent expects more future reward.</p>
+  </div>
+  <div class="chart-grid">
+    <div class="chart" id="qPong"></div>
+    <div class="chart" id="qBreakout"></div>
+  </div>
+  <div class="wrap" style="padding:0">
+  <h3>Against the paper's Table 1</h3>
+  <div class="table-wrap"><table id="scoreTable">
+    <thead><tr><th>Game</th><th>Random</th><th>Human</th><th>Paper DQN</th><th>This agent (best epoch)</th><th>Training steps</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+  <p class="small muted" style="margin-top:8px">Average total reward per episode with ε = 0.05. Random, human and DQN scores are from Table 1 of Mnih et al. 2013, which
+    trained for 10M frames per game on a GPU.</p>
+  </div>
+</div></section>
+
+<section id="mind"><div class="wrap">
+  <span class="step-no">INSIDE ITS HEAD</span>
+  <h2>What the agent expects, frame by frame</h2>
+  <p>The paper's Figure 3 plotted the predicted value, maxₐ Q(s, a), over a stretch of play to show that it rises and falls
+    sensibly. Here it is for a full episode of the trained agent. Play the video or drag along the chart: the bars show the
+    Q-value of every button at that moment, and the highlighted one is the button the network prefers.</p>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Game"><button data-game="pong" aria-pressed="true">Pong</button><button data-game="breakout" aria-pressed="false">Breakout</button></div>
+  </div>
+  <div class="player">
+    <div>
+      <video id="mindVideo" muted playsinline preload="auto"></video>
+      <div class="controls"><button id="mindPlay">▶ Play</button><span class="small muted" id="mindTime"></span></div>
+    </div>
+    <div>
+      <div class="chart" id="mindChart"></div>
+      <div class="qbars" id="qbars"></div>
+    </div>
+  </div>
+  <p class="small muted" style="margin-top:16px">Markers on the line show where a point was won (+1) or lost (−1). Watch the value climb as the ball heads for a
+    point the agent is about to win, and drop when it is about to lose one.</p>
+</div></section>
+
+<section id="diffs"><div class="wrap">
+  <span class="step-no">HONEST NOTES</span>
+  <h2>Where this differs from the paper</h2>
+  <ul class="diffs">
+    <li><b>Less training.</b> The paper trained each game for 10M frames on a GPU. This was trained on a 2019 laptop CPU, so the runs are shorter
+      (lengths are in the results table). Pong is easy enough to master in that time; Breakout keeps improving long after.</li>
+    <li><b>An update every 4 steps, not every step.</b> Algorithm 1 does a gradient step after every action. On this CPU that runs at ~45
+      steps a second. Updating every 4th step (as DeepMind did from 2015 on) is ~4× faster per step, and each transition is still replayed
+      many times.</li>
+    <li><b>Filling in what the paper didn't say.</b> The 2013 paper doesn't give the discount, learning rate, RMSProp settings or how much random
+      play precedes learning. Those come from the 2015 Nature paper: γ = 0.99, lr = 2.5×10⁻⁴, 50,000 random steps first.</li>
+    <li><b>"Frames" read literally.</b> ε falls over the first million <i>emulator frames</i>, which is 250,000 agent steps at k = 4.</li>
+    <li><b>Smaller memory for Pong.</b> 500k transitions instead of 1M, to leave RAM for running both games at once. Breakout uses the full 1M.</li>
+    <li><b>Same as the paper:</b> network, preprocessing, frame skip, reward clipping, minibatch size, RMSProp, ε-greedy with ε = 0.05 for evaluation,
+      no target network, squared-error loss, one set of hyperparameters for every game.</li>
+  </ul>
+</div></section>
+
+<section id="run"><div class="wrap">
+  <span class="step-no">RUN IT YOURSELF</span>
+  <h2>Three commands</h2>
+<pre>git clone https://github.com/amalmehta/AtariRL && cd AtariRL
+python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python -m dqn.train --game pong --steps 1500000 --update-every 4 --eps-anneal-steps 250000</pre>
+  <p>Any of the paper's games works: <code>breakout</code>, <code>beam_rider</code>, <code>enduro</code>, <code>qbert</code>,
+    <code>seaquest</code>, <code>space_invaders</code>. Then watch the result with <code>python -m dqn.play --run runs/pong --out pong</code>.
+    Full instructions are in <a href="https://github.com/amalmehta/AtariRL/blob/main/docs/INSTRUCTIONS.md">INSTRUCTIONS.md</a>, and how it all
+    fits together is in <a href="https://github.com/amalmehta/AtariRL/blob/main/docs/SYSTEM-DESIGN.md">SYSTEM-DESIGN.md</a>.</p>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+  Based on V. Mnih, K. Kavukcuoglu, D. Silver, A. Graves, I. Antonoglou, D. Wierstra, M. Riedmiller,
+  <a href="https://arxiv.org/abs/1312.5602">Playing Atari with Deep Reinforcement Learning</a>, NIPS Deep Learning Workshop 2013.
+  Games run in the <a href="https://github.com/Farama-Foundation/Arcade-Learning-Environment">Arcade Learning Environment</a>.
+  · <a href="https://github.com/amalmehta/AtariRL">Code</a>
+</div></footer>
+
+<script>
+// ---------- theme ----------
+(function () {
+  const root = document.documentElement;
+  try { const t = localStorage.getItem("theme"); if (t) root.dataset.theme = t; } catch (e) {}
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("theme", root.dataset.theme); } catch (e) {}
+    redrawAll();
+  });
+})();
+
+// ---------- math ----------
+window.addEventListener("load", () => {
+  document.querySelectorAll(".math").forEach(el => {
+    if (window.katex) katex.render(el.dataset.tex, el, { displayMode: true, throwOnError: false });
+    else el.textContent = el.dataset.tex;
+  });
+});
+
+// ---------- tiny SVG line chart with crosshair tooltip ----------
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function niceTicks(lo, hi, n) {
+  const span = hi - lo || 1, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => span / s <= n) || 10 * mag;
+  const out = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+const fmtSteps = v => v >= 1e6 ? (v / 1e6).toFixed(v % 1e6 ? 1 : 0) + "M" : v >= 1e3 ? Math.round(v / 1e3) + "k" : String(v);
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+/* opts: {title, series:[{name,color,points:[[x,y]],markers?}], refs:[{y,label}], xFmt, yFmt, height, xLabel,
+          xDomain, yDomain, onHover(x), cursorX} */
+function lineChart(container, opts) {
+  container.innerHTML = "";
+  const W = Math.max(320, Math.min(container.clientWidth || 520, 640)), H = opts.height || 280, m = { t: opts.title ? 34 : 12, r: opts.rightPad || 16, b: 36, l: 44 };
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opts.title || "chart" }, container);
+  const all = opts.series.flatMap(s => s.points);
+  if (!all.length) { container.innerHTML = '<p class="pending">Results will appear here once training has produced them.</p>'; return; }
+  const xs = all.map(p => p[0]), ys = all.map(p => p[1]).concat((opts.refs || []).map(r => r.y));
+  const [x0, x1] = opts.xDomain || [Math.min(0, ...xs), Math.max(...xs)];
+  let [y0, y1] = opts.yDomain || [Math.min(...ys), Math.max(...ys)];
+  if (!opts.yDomain) { const pad = (y1 - y0) * 0.06 || 1; y0 -= pad; y1 += pad; }
+  const X = v => m.l + (v - x0) / (x1 - x0 || 1) * (W - m.l - m.r);
+  const Y = v => H - m.b - (v - y0) / (y1 - y0 || 1) * (H - m.t - m.b);
+  if (opts.title) { const t = el("text", { x: m.l, y: 16, class: "title" }, svg); t.textContent = opts.title; }
+  const ax = el("g", { class: "axis" }, svg);
+  niceTicks(y0, y1, 5).forEach(v => {
+    el("line", { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), class: "gridline" }, ax);
+    const t = el("text", { x: m.l - 8, y: Y(v) + 4, "text-anchor": "end" }, ax); t.textContent = (opts.yFmt || String)(v);
+  });
+  niceTicks(x0, x1, 5).forEach(v => {
+    const t = el("text", { x: X(v), y: H - m.b + 18, "text-anchor": "middle" }, ax); t.textContent = (opts.xFmt || fmtSteps)(v);
+  });
+  el("line", { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b }, ax);
+  if (opts.xLabel) { const t = el("text", { x: W - m.r, y: H - 4, "text-anchor": "end" }, ax); t.textContent = opts.xLabel; }
+  (opts.refs || []).forEach(r => {
+    if (r.y < y0 || r.y > y1) return;
+    const g = el("g", { class: "ref" }, svg);
+    el("line", { x1: m.l, x2: W - m.r, y1: Y(r.y), y2: Y(r.y) }, g);
+    const t = el("text", { x: W - m.r, y: Y(r.y) + (r.below ? 14 : -5), "text-anchor": "end" }, g); t.textContent = r.label;
+  });
+  opts.series.forEach(s => {
+    if (!s.points.length) return;
+    const d = s.points.map((p, i) => (i ? "L" : "M") + X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join("");
+    el("path", { d, fill: "none", stroke: s.color, "stroke-width": s.width || 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    (s.markers || []).forEach(mk => {
+      el("circle", { cx: X(mk.x), cy: Y(mk.y), r: 4.5, fill: mk.color, stroke: css("--surface"), "stroke-width": 2 }, svg);
+    });
+  });
+  // hover layer
+  const hair = el("line", { class: "hair", y1: m.t, y2: H - m.b, opacity: 0 }, svg);
+  const cursor = el("line", { stroke: css("--text"), "stroke-width": 1.5, y1: m.t, y2: H - m.b, opacity: 0 }, svg);
+  const tip = document.createElement("div"); tip.className = "tip"; container.appendChild(tip);
+  const hit = el("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: "transparent", tabindex: 0 }, svg);
+  const xOf = evt => { const r = svg.getBoundingClientRect(); return x0 + ((evt.clientX - r.left) * W / r.width - m.l) / (W - m.l - m.r) * (x1 - x0); };
+  function show(xv, clientX) {
+    hair.setAttribute("x1", X(xv)); hair.setAttribute("x2", X(xv)); hair.setAttribute("opacity", 1);
+    tip.replaceChildren();
+    const hd = document.createElement("div"); hd.className = "hd"; hd.textContent = (opts.tipX || (v => "step " + fmtSteps(Math.round(v))))(xv); tip.appendChild(hd);
+    opts.series.forEach(s => {
+      if (!s.points.length) return;
+      const p = s.points.reduce((b, q) => Math.abs(q[0] - xv) < Math.abs(b[0] - xv) ? q : b);
+      const row = document.createElement("div"); row.className = "row";
+      const key = document.createElement("span"); key.className = "key"; key.style.background = s.color;
+      const v = document.createElement("strong"); v.textContent = (opts.yFmt || (y => (+y).toFixed(1)))(p[1]);
+      const n = document.createElement("span"); n.textContent = s.name; n.style.color = css("--text-2");
+      row.append(key, v, n); tip.appendChild(row);
+    });
+    tip.style.opacity = 1;
+    const cr = container.getBoundingClientRect(), px = (X(xv) / W) * cr.width;
+    tip.style.left = Math.min(Math.max(0, px + 12), cr.width - tip.offsetWidth) + "px";
+    tip.style.top = "8px";
+  }
+  function hide() { hair.setAttribute("opacity", 0); tip.style.opacity = 0; }
+  hit.addEventListener("pointermove", e => { const xv = Math.min(x1, Math.max(x0, xOf(e))); show(xv); if (opts.onHover) opts.onHover(xv, e); });
+  hit.addEventListener("pointerdown", e => { if (opts.onPick) { opts.onPick(Math.min(x1, Math.max(x0, xOf(e)))); } });
+  hit.addEventListener("pointerleave", hide);
+  hit.addEventListener("focus", () => show(x1));
+  hit.addEventListener("blur", hide);
+  return { setCursor(xv) { cursor.setAttribute("x1", X(xv)); cursor.setAttribute("x2", X(xv)); cursor.setAttribute("opacity", 0.8); } };
+}
+
+// ---------- data-driven sections ----------
+let RESULTS = null, MIND = {}, mindGame = "pong";
+const GAME_NAMES = { pong: "Pong", breakout: "Breakout" };
+
+function drawEps() {
+  const pts = [[0, 1], [250000, 0.1], [1500000, 0.1]];
+  lineChart(document.getElementById("epsChart"), {
+    series: [{ name: "ε", color: css("--series-1"), points: pts }], yDomain: [0, 1.05], height: 200,
+    refs: [{ y: 0.05, label: "evaluation ε = 0.05", below: true }], xLabel: "agent steps", yFmt: v => (+v).toFixed(2),
+  });
+}
+
+function drawResults() {
+  if (!RESULTS) return;
+  for (const game of ["pong", "breakout"]) {
+    const r = RESULTS[game], id = GAME_NAMES[game];
+    if (!r) { lineChart(document.getElementById("score" + id), { title: id, series: [] }); continue; }
+    const p = r.paper;
+    lineChart(document.getElementById("score" + id), {
+      title: id + " · score per episode",
+      series: [
+        { name: "training (rolling mean)", color: css("--series-2"), points: r.train, width: 1.5 },
+        { name: "evaluation", color: css("--series-1"), points: r.evals.map(e => [e[0], e[1]]) },
+      ],
+      refs: [{ y: p.dqn, label: "paper DQN " + p.dqn }, { y: p.human, label: "human " + p.human }, { y: p.random, label: "random " + p.random }],
+      xLabel: "training steps",
+    });
+    lineChart(document.getElementById("q" + id), {
+      title: id + " · average max Q on held-out states",
+      series: [{ name: "avg max Q", color: css("--series-1"), points: r.evals.map(e => [e[0], e[2]]) }],
+      xLabel: "training steps", yFmt: v => (+v).toFixed(2),
+    });
+  }
+}
+
+function fillResultsText() {
+  if (!RESULTS) return;
+  const tb = document.querySelector("#scoreTable tbody"); tb.replaceChildren();
+  const lens = [];
+  for (const game of ["pong", "breakout"]) {
+    const r = RESULTS[game]; if (!r) continue;
+    const last = r.evals.length ? r.evals[r.evals.length - 1][0] : 0;
+    lens.push(`${GAME_NAMES[game]} ${fmtSteps(last)} steps (${fmtSteps(last * r.config.frame_skip)} frames, ${r.hours} h)`);
+    const tr = document.createElement("tr");
+    [GAME_NAMES[game], r.paper.random, r.paper.human, r.paper.dqn, r.best_eval == null ? "–" : r.best_eval.toFixed(1),
+     `${fmtSteps(last)} (${fmtSteps(last * r.config.frame_skip)} frames)`].forEach(v => {
+      const td = document.createElement("td"); td.textContent = v; tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  }
+  document.getElementById("hpLen").textContent = lens.join(" · ");
+}
+
+// ---------- value-function player ----------
+const video = document.getElementById("mindVideo");
+let mindChart = null;
+function stepAtTime(t, d) { return Math.min(d.q.length - 1, Math.max(0, Math.floor(t * d.fps))); }
+function renderBars(step) {
+  const d = MIND[mindGame]; if (!d) return;
+  const q = d.q[step], lo = Math.min(...d.q.flat()), hi = Math.max(...d.q.flat());
+  const best = q.indexOf(Math.max(...q));
+  const box = document.getElementById("qbars"); box.replaceChildren();
+  q.forEach((v, i) => {
+    const row = document.createElement("div"); row.className = "qbar" + (i === best ? " on" : "");
+    const n = document.createElement("span"); n.className = "n"; n.textContent = d.action_names[i];
+    const tr = document.createElement("div"); tr.className = "track";
+    const f = document.createElement("div"); f.className = "fill"; f.style.width = Math.max(1, (v - lo) / (hi - lo || 1) * 100) + "%";
+    tr.appendChild(f);
+    const val = document.createElement("span"); val.className = "val"; val.textContent = v.toFixed(3);
+    row.append(n, tr, val); box.appendChild(row);
+  });
+  document.getElementById("mindTime").textContent = `step ${step} of ${d.q.length} · score so far ${d.rewards.slice(0, step).reduce((a, b) => a + b, 0)}`;
+  if (mindChart) mindChart.setCursor(step);
+}
+function drawMind() {
+  const d = MIND[mindGame], box = document.getElementById("mindChart");
+  if (!d) { box.innerHTML = '<p class="pending">Recording not available yet.</p>'; document.getElementById("qbars").replaceChildren(); return; }
+  const v = d.q.map((q, i) => [i, Math.max(...q)]);
+  const markers = [];
+  d.rewards.forEach((r, i) => { if (r) markers.push({ x: i, y: v[i][1], color: r > 0 ? css("--series-1") : css("--series-2") }); });
+  mindChart = lineChart(box, {
+    title: `${GAME_NAMES[mindGame]} · predicted value maxₐ Q(s, a)`, height: 240,
+    series: [{ name: "value", color: css("--series-1"), points: v, markers, width: 1.5 }],
+    xLabel: "agent step", xFmt: v => String(Math.round(v)), yFmt: v => (+v).toFixed(2),
+    tipX: x => "step " + Math.round(x),
+    onPick: x => { video.currentTime = (Math.round(x) + 0.5) / d.fps; renderBars(Math.round(x)); },
+    onHover: x => { if (video.paused) { video.currentTime = (Math.round(x) + 0.5) / d.fps; renderBars(Math.round(x)); } },
+  });
+  renderBars(stepAtTime(video.currentTime || 0, d));
+}
+function loadMind(game) {
+  mindGame = game;
+  document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.game === game));
+  video.src = `assets/${game}.mp4`;
+  video.addEventListener("loadedmetadata", () => { if (video.currentTime === 0) video.currentTime = 1; }, { once: true });
+  document.getElementById("mindPlay").textContent = "▶ Play";
+  if (MIND[game] !== undefined) return drawMind();
+  fetch(`assets/${game}_q.json`).then(r => r.ok ? r.json() : null).catch(() => null).then(d => {
+    MIND[game] = d; drawMind();
+    if (d) {
+      const cap = document.getElementById(game === "pong" ? "heroPongCap" : "heroBreakoutCap");
+      cap.textContent = "";
+      const b = document.createElement("b"); b.textContent = d.score; cap.append("score ", b);
+      if (game === "pong") fillTdExample(d);
+    }
+  });
+}
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => loadMind(b.dataset.game)));
+document.getElementById("mindPlay").addEventListener("click", () => {
+  if (video.paused) { video.play(); document.getElementById("mindPlay").textContent = "❚❚ Pause"; }
+  else { video.pause(); document.getElementById("mindPlay").textContent = "▶ Play"; }
+});
+video.addEventListener("timeupdate", () => { const d = MIND[mindGame]; if (d) renderBars(stepAtTime(video.currentTime, d)); });
+video.addEventListener("ended", () => { document.getElementById("mindPlay").textContent = "▶ Play"; });
+
+function fillTdExample(d) {
+  // Find a step where a point was won, and show the target computed one step earlier.
+  const i = d.rewards.findIndex(r => r > 0);
+  const box = document.getElementById("tdExample");
+  if (i < 1) return;
+  const j = Math.max(0, i - 15), qj = d.q[j], aj = d.actions[j], qn = Math.max(...d.q[j + 1]);
+  const y = d.rewards[j] + 0.99 * qn;
+  box.replaceChildren();
+  const b = document.createElement("b"); b.textContent = "A worked example from the trained Pong agent. ";
+  box.append(b, `At step ${j} of the recorded game (one second before it wins a point) the network rates its chosen button ` +
+    `${d.action_names[aj]} at Q = ${qj[aj].toFixed(3)}. The reward that step is ${d.rewards[j]}, and the best Q-value one step later is ` +
+    `${qn.toFixed(3)}, so the target is y = ${d.rewards[j]} + 0.99 × ${qn.toFixed(3)} = ${y.toFixed(3)}. ` +
+    `The gap, ${(y - qj[aj]).toFixed(3)}, is the error the update shrinks.`);
+}
+
+function redrawAll() { drawEps(); drawResults(); drawMind(); }
+fetch("assets/results.json").then(r => r.json()).then(d => { RESULTS = d; drawResults(); fillResultsText(); }).catch(() => {});
+fetch("assets/breakout_q.json").then(r => r.ok ? r.json() : null).catch(() => null).then(d => {
+  MIND.breakout = d;
+  if (d) { const cap = document.getElementById("heroBreakoutCap"); const b = document.createElement("b"); b.textContent = d.score; cap.replaceChildren("score ", b); }
+});
+drawEps();
+loadMind("pong");
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(redrawAll, 150); });
+</script>
+</body>
+</html>

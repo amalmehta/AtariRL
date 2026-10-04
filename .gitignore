@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+runs/
+.claude/
+.DS_Store
+atari_rl.md

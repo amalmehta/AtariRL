@@ -69,6 +69,10 @@ def build_results():
             "best_eval": max((e["eval_score"] for e in evals), default=None),
             "paper": PAPER[game],
         }
+        baseline = ROOT / "runs" / f"{game}-no-target" / "evals.csv"
+        if baseline.exists():  # the first Pong run, faithful to 2013, that never learned
+            results[game]["no_target"] = [[int(e["step"]), e["eval_score"], e["avg_max_q"]]
+                                          for e in read_csv(baseline)]
     (ASSETS / "results.json").write_text(json.dumps(results, separators=(",", ":")))
     return results
 
@@ -103,6 +107,9 @@ def build_readme_chart(results):
     fig, axes = plt.subplots(1, len(results), figsize=(5 * len(results), 3.2), squeeze=False)
     for ax, (game, r) in zip(axes[0], results.items()):
         steps = [e[0] / 1e6 for e in r["evals"]]
+        if r.get("no_target"):
+            ax.plot([e[0] / 1e6 for e in r["no_target"]], [e[1] for e in r["no_target"]],
+                    color="#a3a29c", lw=1.5, label="no target network")
         ax.plot(steps, [e[1] for e in r["evals"]], color="#2a78d6", lw=2, label="this agent (ε = 0.05)")
         ax.axhline(r["paper"]["dqn"], color="#52514e", ls="--", lw=1)
         ax.axhline(r["paper"]["random"], color="#a3a29c", ls=":", lw=1)

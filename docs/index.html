@@ -24,6 +24,7 @@
   --grid: #ecebe7;
   --series-1: #2a78d6;
   --series-2: #eb6834;
+  --series-3: #7a7974;
   --muted-mark: #c9c8c2;
   --code-bg: #f4f3f0;
   --accent: #2a78d6;
@@ -41,6 +42,7 @@
     --grid: #2a2a27;
     --series-1: #3987e5;
     --series-2: #d95926;
+    --series-3: #8f8e86;
     --muted-mark: #4a4a45;
     --code-bg: #222220;
     --accent: #6da7ec;
@@ -58,6 +60,7 @@
   --grid: #2a2a27;
   --series-1: #3987e5;
   --series-2: #d95926;
+  --series-3: #8f8e86;
   --muted-mark: #4a4a45;
   --code-bg: #222220;
   --accent: #6da7ec;
@@ -374,7 +377,9 @@ footer { border-top: 1px solid var(--border); padding: 40px 0 64px; font-size: 1
   \qquad L(\theta) = \big(y - Q(s,a;\theta)\big)^2"></div>
   <p>γ = 0.99 is the <i>discount</i>: a reward one step away is worth 99% of a reward now, so the agent cares about the future but prefers sooner.
     The target uses the same network but is held fixed while taking the gradient step (no gradient flows through <code>y</code>).
-    The 2013 paper has no separate "target network"; that came in the 2015 follow-up.</p>
+    The 2013 paper has no separate "target network"; that came in the 2015 follow-up. The Breakout agent here follows 2013 exactly.
+    The Pong agent needed the 2015 fix: its targets come from a frozen copy of the network, refreshed every 10,000 steps
+    (see <a href="#diffs">Differences</a> for why).</p>
   <div class="callout" id="tdExample">
     <b>A worked example from the trained Pong agent.</b> <span class="pending">Loading…</span>
   </div>
@@ -450,6 +455,7 @@ footer { border-top: 1px solid var(--border); padding: 40px 0 64px; font-size: 1
       <tr><td>Optimiser</td><td>RMSProp</td><td>RMSProp, lr 2.5×10⁻⁴ *</td></tr>
       <tr><td>Discount γ</td><td>not stated</td><td>0.99 *</td></tr>
       <tr><td>Updates</td><td>every step</td><td>every 4th step *</td></tr>
+      <tr><td>Target network</td><td>none</td><td>none (Breakout) · refreshed every 10k steps (Pong) *</td></tr>
       <tr><td>Training length</td><td>10M frames per game</td><td><span id="hpLen">see results</span></td></tr>
     </tbody>
   </table></div>
@@ -464,7 +470,7 @@ footer { border-top: 1px solid var(--border); padding: 40px 0 64px; font-size: 1
     the blue line is its average score per episode. The orange line is the score of the training episodes themselves (with
     exploration, so lower). Dashed lines are the paper's reference scores.</p>
   </div>
-  <div class="legend"><span><i style="background:var(--series-1)"></i>Evaluation (ε = 0.05)</span><span><i style="background:var(--series-2)"></i>Training episodes (rolling mean of 20)</span></div>
+  <div class="legend"><span><i style="background:var(--series-1)"></i>Evaluation (ε = 0.05)</span><span><i style="background:var(--series-2)"></i>Training episodes (rolling mean of 20)</span><span><i style="background:var(--series-3)"></i>Pong, first run without a target network (evaluation)</span></div>
   <div class="chart-grid">
     <div class="chart" id="scorePong"></div>
     <div class="chart" id="scoreBreakout"></div>
@@ -517,8 +523,13 @@ footer { border-top: 1px solid var(--border); padding: 40px 0 64px; font-size: 1
   <span class="step-no">HONEST NOTES</span>
   <h2>Where this differs from the paper</h2>
   <ul class="diffs">
-    <li><b>Less training.</b> The paper trained each game for 10M frames on a GPU. This was trained on a 2019 laptop CPU, so the runs are shorter
-      (lengths are in the results table). Pong is easy enough to master in that time; Breakout keeps improving long after.</li>
+    <li><b>Less training.</b> The paper trained each game for 10M frames on a GPU. This was trained on a 2019 laptop CPU, so the runs are far shorter
+      (lengths are in the results table). Breakout was stopped at 350k steps when the laptop ran out of RAM running two games at once;
+      its best checkpoint, from 300k steps, is the one shown.</li>
+    <li><b>A target network for Pong.</b> The first Pong run followed 2013 exactly, with no target network. After 750k steps it was still
+      losing every point: it pressed one button almost every step and its Q-values barely told the buttons apart. That run is the grey line
+      in the Pong chart. Pong was then retrained with one change from the 2015 Nature paper: the targets <code>y</code> come from a frozen copy
+      of the network, refreshed every 10,000 steps, so the network isn't chasing targets that move with every update. Breakout learned without it.</li>
     <li><b>An update every 4 steps, not every step.</b> Algorithm 1 does a gradient step after every action. On this CPU that runs at ~45
       steps a second. Updating every 4th step (as DeepMind did from 2015 on) is ~4× faster per step, and each transition is still replayed
       many times.</li>
@@ -527,7 +538,7 @@ footer { border-top: 1px solid var(--border); padding: 40px 0 64px; font-size: 1
     <li><b>"Frames" read literally.</b> ε falls over the first million <i>emulator frames</i>, which is 250,000 agent steps at k = 4.</li>
     <li><b>Smaller memory for Pong.</b> 500k transitions instead of 1M, to leave RAM for running both games at once. Breakout uses the full 1M.</li>
     <li><b>Same as the paper:</b> network, preprocessing, frame skip, reward clipping, minibatch size, RMSProp, ε-greedy with ε = 0.05 for evaluation,
-      no target network, squared-error loss, one set of hyperparameters for every game.</li>
+      squared-error loss, one set of hyperparameters for every game (apart from Pong's target network).</li>
   </ul>
 </div></section>
 
@@ -536,7 +547,7 @@ footer { border-top: 1px solid var(--border); padding: 40px 0 64px; font-size: 1
   <h2>Three commands</h2>
 <pre>git clone https://github.com/amalmehta/AtariRL && cd AtariRL
 python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/python -m dqn.train --game pong --steps 1500000 --update-every 4 --eps-anneal-steps 250000</pre>
+.venv/bin/python -m dqn.train --game pong --steps 1500000 --update-every 4 --eps-anneal-steps 250000 --target-update 10000</pre>
   <p>Any of the paper's games works: <code>breakout</code>, <code>beam_rider</code>, <code>enduro</code>, <code>qbert</code>,
     <code>seaquest</code>, <code>space_invaders</code>. Then watch the result with <code>python -m dqn.play --run runs/pong --out pong</code>.
     Full instructions are in <a href="https://github.com/amalmehta/AtariRL/blob/main/docs/INSTRUCTIONS.md">INSTRUCTIONS.md</a>, and how it all
@@ -685,6 +696,7 @@ function drawResults() {
       series: [
         { name: "training (rolling mean)", color: css("--series-2"), points: r.train, width: 1.5 },
         { name: "evaluation", color: css("--series-1"), points: r.evals.map(e => [e[0], e[1]]) },
+        ...(r.no_target ? [{ name: "no target network", color: css("--series-3"), points: r.no_target.map(e => [e[0], e[1]]), width: 1.5 }] : []),
       ],
       refs: [{ y: p.dqn, label: "paper DQN " + p.dqn }, { y: p.human, label: "human " + p.human }, { y: p.random, label: "random " + p.random }],
       xLabel: "training steps",

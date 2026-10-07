@@ -21,10 +21,10 @@ Check everything is wired up:
 ## Train
 
 ```bash
-.venv/bin/python -m dqn.train --game pong --steps 1500000 --update-every 4 --eps-anneal-steps 250000
+.venv/bin/python -m dqn.train --game pong --steps 1500000 --update-every 4 --eps-anneal-steps 250000 --target-update 10000
 ```
 
-This is the setting used for the published Pong run. For the exact paper settings (update every step, 10M steps), drop the flags:
+This is the setting used for the published Pong run. It adds the 2015 paper's target network; without `--target-update`, Pong stayed at random-play level for 750k steps. For the exact paper settings (update every step, 10M steps), drop the flags:
 
 ```bash
 .venv/bin/python -m dqn.train --game breakout
@@ -43,10 +43,11 @@ Useful flags (all optional):
 | `--replay-capacity` | 1,000,000 | transitions kept in memory |
 | `--replay-start` | 50,000 | random steps before learning starts |
 | `--eval-every` / `--eval-steps` | 50,000 / 10,000 | evaluation schedule |
+| `--target-update` | 0 | steps between target-network refreshes; 0 = no target network (2013) |
 | `--threads` | 4 | PyTorch CPU threads |
 | `--lr`, `--seed` | 2.5e-4, 0 | |
 
-Progress prints every 10,000 steps, plus an evaluation line every epoch. Logs go to `runs/<game>/episodes.csv` and `evals.csv`; weights to `best.pt` and `latest.pt`. Stop any time with Ctrl-C; the last epoch's weights are kept.
+Progress prints every 10,000 steps, plus an evaluation line every epoch. Logs go to `runs/<game>/episodes.csv` and `evals.csv`; weights to `best.pt` and `latest.pt`. Stop any time with Ctrl-C; the last epoch's weights are kept. A run can't be resumed (the replay memory lives in RAM), so for long runs start it somewhere that outlives your terminal, e.g. `screen -dmS pong caffeinate -i .venv/bin/python -m dqn.train ...`.
 
 ## Watch a trained agent
 

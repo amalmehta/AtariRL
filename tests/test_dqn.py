@@ -127,6 +127,11 @@ def test_target_network_frozen_until_sync():
     assert torch.equal(agent.target_net(states), agent.net(states))
 
 
+def test_optimizer_choice():
+    assert isinstance(DQNAgent(3, Config()).optimizer, torch.optim.RMSprop)
+    assert isinstance(DQNAgent(3, Config(optimizer="adam")).optimizer, torch.optim.Adam)
+
+
 def test_no_target_network_by_default():
     assert DQNAgent(3, Config()).target_net is None
 

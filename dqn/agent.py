@@ -41,9 +41,12 @@ class DQNAgent:
         self.n_actions = n_actions
         self.cfg = cfg
         self.net = QNetwork(n_actions, cfg.history)
-        self.optimizer = torch.optim.RMSprop(
-            self.net.parameters(), lr=cfg.lr, alpha=cfg.rms_alpha, eps=cfg.rms_eps, centered=True
-        )
+        if cfg.optimizer == "adam":
+            self.optimizer = torch.optim.Adam(self.net.parameters(), lr=cfg.lr)
+        else:
+            self.optimizer = torch.optim.RMSprop(
+                self.net.parameters(), lr=cfg.lr, alpha=cfg.rms_alpha, eps=cfg.rms_eps, centered=True
+            )
         self.rng = np.random.default_rng(seed)
         self.target_net = copy.deepcopy(self.net) if cfg.target_update > 0 else None
 

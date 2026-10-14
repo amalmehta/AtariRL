@@ -22,7 +22,8 @@ class Config:
     replay_capacity: int = 1_000_000  # paper: one million most recent frames
     batch_size: int = 32
     gamma: float = 0.99            # not in 2013 (Nature value)
-    lr: float = 2.5e-4             # not in 2013 (Nature value); optimiser is RMSProp
+    optimizer: str = "rmsprop"     # paper: RMSProp; "adam" for the fast Pong recipe
+    lr: float = 2.5e-4             # not in 2013 (Nature value)
     rms_alpha: float = 0.95        # RMSProp squared-gradient momentum (Nature)
     rms_eps: float = 0.01          # RMSProp min squared gradient (Nature)
     update_every: int = 1          # Algorithm 1 does one minibatch update per step

@@ -151,6 +151,8 @@ def main():
     p.add_argument("--eval-every", type=int, default=Config.eval_every)
     p.add_argument("--eval-steps", type=int, default=Config.eval_steps)
     p.add_argument("--lr", type=float, default=Config.lr)
+    p.add_argument("--optimizer", choices=["rmsprop", "adam"], default=Config.optimizer,
+                   help="paper: rmsprop")
     p.add_argument("--update-every", type=int, default=Config.update_every,
                    help="agent steps between minibatch updates (paper: 1)")
     p.add_argument("--target-update", type=int, default=Config.target_update,
@@ -159,7 +161,7 @@ def main():
     cfg = Config(game=a.game, seed=a.seed, total_steps=a.steps, threads=a.threads,
                  frame_skip=frame_skip_for(a.game), replay_capacity=a.replay_capacity,
                  replay_start=a.replay_start, eps_anneal_steps=a.eps_anneal_steps,
-                 eval_every=a.eval_every, eval_steps=a.eval_steps, lr=a.lr,
+                 eval_every=a.eval_every, eval_steps=a.eval_steps, lr=a.lr, optimizer=a.optimizer,
                  update_every=a.update_every, target_update=a.target_update)
     train(cfg, a.out or Path("runs") / a.game)
 

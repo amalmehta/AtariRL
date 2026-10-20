@@ -59,12 +59,17 @@ def main():
     a.out.parent.mkdir(parents=True, exist_ok=True)
     big = [np.repeat(np.repeat(s, 2, axis=0), 2, axis=1) for s in screens]  # 320x420, crisp pixels
     imageio.mimwrite(f"{a.out}.mp4", big, fps=fps, quality=7, macro_block_size=4)
-    gif_frames = screens[: int(a.gif_seconds * fps): 2]
+    # Start the GIF 2 s before the first point so it skips any idle opening (Breakout's
+    # agent can wait a long time before serving). The MP4 keeps the whole episode.
+    first = next((i for i, r in enumerate(rewards) if r), 0)
+    start = max(0, first - 2 * fps)
+    gif_frames = screens[start: start + int(a.gif_seconds * fps): 2]
     imageio.mimwrite(f"{a.out}.gif", gif_frames, duration=2000 / fps, loop=0)
 
     names = [act.name for act in env.actions]
     data = {"game": cfg.game, "fps": fps, "action_names": names, "q": qs,
-            "actions": actions, "rewards": rewards, "score": float(sum(rewards))}
+            "actions": actions, "rewards": rewards, "score": float(sum(rewards)),
+            "highlight_start": round(start / fps, 2)}
     Path(f"{a.out}_q.json").write_text(json.dumps(data, separators=(",", ":")))
     print(f"{cfg.game}: score {data['score']:.0f} in {len(actions)} steps -> {a.out}.mp4")
 

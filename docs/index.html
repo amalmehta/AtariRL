@@ -24,7 +24,8 @@
   --grid: #ecebe7;
   --series-1: #2a78d6;
   --series-2: #eb6834;
-  --series-3: #7a7974;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
   --muted-mark: #c9c8c2;
   --code-bg: #f4f3f0;
   --accent: #2a78d6;
@@ -42,7 +43,8 @@
     --grid: #2a2a27;
     --series-1: #3987e5;
     --series-2: #d95926;
-    --series-3: #8f8e86;
+    --series-3: #199e70;
+    --series-4: #c98500;
     --muted-mark: #4a4a45;
     --code-bg: #222220;
     --accent: #6da7ec;
@@ -60,7 +62,8 @@
   --grid: #2a2a27;
   --series-1: #3987e5;
   --series-2: #d95926;
-  --series-3: #8f8e86;
+  --series-3: #199e70;
+  --series-4: #c98500;
   --muted-mark: #4a4a45;
   --code-bg: #222220;
   --accent: #6da7ec;
@@ -377,9 +380,9 @@ footer { border-top: 1px solid var(--border); padding: 40px 0 64px; font-size: 1
   \qquad L(\theta) = \big(y - Q(s,a;\theta)\big)^2"></div>
   <p>γ = 0.99 is the <i>discount</i>: a reward one step away is worth 99% of a reward now, so the agent cares about the future but prefers sooner.
     The target uses the same network but is held fixed while taking the gradient step (no gradient flows through <code>y</code>).
-    The 2013 paper has no separate "target network"; that came in the 2015 follow-up. The Breakout agent here follows 2013 exactly.
-    The Pong agent needed the 2015 fix: its targets come from a frozen copy of the network, refreshed every 10,000 steps
-    (see <a href="#diffs">Differences</a> for why).</p>
+    The 2013 paper has no separate "target network"; that came in the 2015 follow-up. The Breakout agent here follows the 2013 setup.
+    The published Pong agent uses a faster-learning recipe that includes a target network: its targets come from a frozen copy of
+    the network, refreshed every 1,000 steps (see <a href="#diffs">Differences</a> for why).</p>
   <div class="callout" id="tdExample">
     <b>A worked example from the trained Pong agent.</b> <span class="pending">Loading…</span>
   </div>
@@ -424,7 +427,8 @@ footer { border-top: 1px solid var(--border); padding: 40px 0 64px; font-size: 1
     linearly to 0.1 over the first million frames, then stays there. Evaluation uses ε = 0.05.</p>
   <figure>
     <div class="chart" id="epsChart"></div>
-    <figcaption>Exploration rate over training, in agent steps (1 step = 4 frames, so 250k steps = 1M frames).</figcaption>
+    <figcaption>The paper's exploration schedule, used for Breakout, in agent steps (1 step = 4 frames, so 250k steps = 1M frames).
+      The published Pong agent drops ε to 0.1 faster, over 100k steps.</figcaption>
   </figure>
 </div></section>
 
@@ -446,31 +450,34 @@ footer { border-top: 1px solid var(--border); padding: 40px 0 64px; font-size: 1
     <li class="i2">Gradient step on (yⱼ − Q(sⱼ, aⱼ))² with RMSProp <a href="https://github.com/amalmehta/AtariRL/blob/main/dqn/agent.py">learn()</a></li>
   </ol>
   <div class="table-wrap"><table>
-    <thead><tr><th>Hyperparameter</th><th>Paper (2013)</th><th>Here</th></tr></thead>
+    <thead><tr><th>Hyperparameter</th><th>Paper (2013)</th><th>Breakout here</th><th>Pong here (fast recipe)</th></tr></thead>
     <tbody>
-      <tr><td>Minibatch size</td><td>32</td><td>32</td></tr>
-      <tr><td>Replay memory</td><td>1M</td><td>1M (Breakout) · 500k (Pong)</td></tr>
-      <tr><td>Frame skip k</td><td>4 (3 for Space Invaders)</td><td>4</td></tr>
-      <tr><td>ε schedule</td><td>1 → 0.1 over first 1M frames</td><td>1 → 0.1 over 250k steps (= 1M frames)</td></tr>
-      <tr><td>Optimiser</td><td>RMSProp</td><td>RMSProp, lr 2.5×10⁻⁴ *</td></tr>
-      <tr><td>Discount γ</td><td>not stated</td><td>0.99 *</td></tr>
-      <tr><td>Updates</td><td>every step</td><td>every 4th step *</td></tr>
-      <tr><td>Target network</td><td>none</td><td>none (Breakout) · refreshed every 10k steps (Pong) *</td></tr>
-      <tr><td>Training length</td><td>10M frames per game</td><td><span id="hpLen">see results</span></td></tr>
+      <tr><td>Minibatch size</td><td>32</td><td>32</td><td>32</td></tr>
+      <tr><td>Replay memory</td><td>1M</td><td>1M</td><td>100k</td></tr>
+      <tr><td>Frame skip k</td><td>4 (3 for Space Invaders)</td><td>4</td><td>4</td></tr>
+      <tr><td>ε schedule</td><td>1 → 0.1 over first 1M frames</td><td>1 → 0.1 over 250k steps (= 1M frames)</td><td>1 → 0.1 over 100k steps</td></tr>
+      <tr><td>Optimiser</td><td>RMSProp</td><td>RMSProp, lr 2.5×10⁻⁴ *</td><td>Adam, lr 1×10⁻⁴</td></tr>
+      <tr><td>Discount γ</td><td>not stated</td><td>0.99 *</td><td>0.99</td></tr>
+      <tr><td>Updates</td><td>every step</td><td>every 4th step *</td><td>every step</td></tr>
+      <tr><td>Target network</td><td>none</td><td>none</td><td>refreshed every 1k steps</td></tr>
+      <tr><td>Random steps before learning</td><td>not stated</td><td>50k *</td><td>10k</td></tr>
+      <tr><td>Training length</td><td>10M frames per game</td><td id="hpLenBreakout">see results</td><td id="hpLenPong">see results</td></tr>
     </tbody>
   </table></div>
-  <p class="small muted" style="margin-top:8px">* Not specified in 2013 or changed for CPU time; values from DeepMind's 2015 Nature paper. See <a href="#diffs">Differences</a>.</p>
+  <p class="small muted" style="margin-top:8px">* Not specified in 2013 or changed for CPU time; values from DeepMind's 2015 Nature paper.
+    The Pong column is a commonly used fast-learning setup, not the paper's. See <a href="#diffs">Differences</a>.</p>
 </div></section>
 
 <section id="results"><div class="wrap wide">
   <div class="wrap" style="padding:0">
   <span class="step-no">RESULTS</span>
   <h2>Does it work on a laptop?</h2>
-  <p id="resultsLede">Each chart shows one game. Every 50,000 steps training paused and the agent played 10,000 steps with ε = 0.05;
-    the blue line is its average score per episode. The orange line is the score of the training episodes themselves (with
-    exploration, so lower). Dashed lines are the paper's reference scores.</p>
+  <p id="resultsLede">Each chart shows one game. Every 25,000 steps (Pong) or 50,000 steps (Breakout) training paused and the agent
+    played 10,000 steps with ε = 0.05; the blue line is its average score per game. The orange line is the score of the training
+    games themselves (with exploration, so lower). Dashed lines are the paper's reference scores. On the Pong chart, the aqua and
+    yellow lines are the two earlier runs with the paper's own settings, which never learned.</p>
   </div>
-  <div class="legend"><span><i style="background:var(--series-1)"></i>Evaluation (ε = 0.05)</span><span><i style="background:var(--series-2)"></i>Training episodes (rolling mean of 20)</span><span><i style="background:var(--series-3)"></i>Pong, first run without a target network (evaluation)</span></div>
+  <div class="legend"><span><i style="background:var(--series-1)"></i>Evaluation (ε = 0.05)</span><span><i style="background:var(--series-2)"></i>Training episodes (rolling mean of 20)</span><span><i style="background:var(--series-3)"></i>Pong, paper settings, no target network</span><span><i style="background:var(--series-4)"></i>Pong, paper settings + target network</span></div>
   <div class="chart-grid">
     <div class="chart" id="scorePong"></div>
     <div class="chart" id="scoreBreakout"></div>
@@ -491,8 +498,8 @@ footer { border-top: 1px solid var(--border); padding: 40px 0 64px; font-size: 1
     <thead><tr><th>Game</th><th>Random</th><th>Human</th><th>Paper DQN</th><th>This agent (best epoch)</th><th>Training steps</th></tr></thead>
     <tbody></tbody>
   </table></div>
-  <p class="small muted" style="margin-top:8px">Average total reward per episode with ε = 0.05. Random, human and DQN scores are from Table 1 of Mnih et al. 2013, which
-    trained for 10M frames per game on a GPU.</p>
+  <p class="small muted" style="margin-top:8px">Average total reward per episode with ε = 0.05; "best epoch" is the highest evaluation, each over 2–5 games for Pong, so
+    expect noise. Random, human and DQN scores are from Table 1 of Mnih et al. 2013, which trained for 10M frames per game on a GPU.</p>
   </div>
 </div></section>
 
@@ -516,7 +523,8 @@ footer { border-top: 1px solid var(--border); padding: 40px 0 64px; font-size: 1
     </div>
   </div>
   <p class="small muted" style="margin-top:16px">Markers on the line show where a point was won (+1) or lost (−1). Watch the value climb as the ball heads for a
-    point the agent is about to win, and drop when it is about to lose one.</p>
+    point the agent is about to win, and drop when it is about to lose one. The Breakout agent rarely presses FIRE, so it often waits
+    in the corner until a random action happens to serve: in this recording, for about 25 seconds.</p>
 </div></section>
 
 <section id="diffs"><div class="wrap">
@@ -526,19 +534,23 @@ footer { border-top: 1px solid var(--border); padding: 40px 0 64px; font-size: 1
     <li><b>Less training.</b> The paper trained each game for 10M frames on a GPU. This was trained on a 2019 laptop CPU, so the runs are far shorter
       (lengths are in the results table). Breakout was stopped at 350k steps when the laptop ran out of RAM running two games at once;
       its best checkpoint, from 300k steps, is the one shown.</li>
-    <li><b>A target network for Pong.</b> The first Pong run followed 2013 exactly, with no target network. After 750k steps it was still
-      losing every point: it pressed one button almost every step and its Q-values barely told the buttons apart. That run is the grey line
-      in the Pong chart. Pong was then retrained with one change from the 2015 Nature paper: the targets <code>y</code> come from a frozen copy
-      of the network, refreshed every 10,000 steps, so the network isn't chasing targets that move with every update. Breakout learned without it.</li>
-    <li><b>An update every 4 steps, not every step.</b> Algorithm 1 does a gradient step after every action. On this CPU that runs at ~45
+    <li><b>A different recipe for Pong.</b> Pong was first trained with the paper's settings, twice. Without a target network, it was still
+      losing every point after 750k steps, pressing one button almost every step. With the 2015 paper's target network added, it was still
+      at −21 after 850k steps; its Q-values barely told the buttons apart and didn't react to the ball. Those settings were tuned for 10M+ steps
+      on a GPU and typically need 1–2.5M steps to start winning Pong, which is more than a day on this laptop. The published Pong agent uses a
+      common fast-learning recipe instead: same network, preprocessing and Q-learning, but Adam (lr 10⁻⁴), a target network refreshed every
+      1,000 steps, an update every step, a 100k replay memory and faster exploration decay. It started winning at 275k steps. Both earlier runs
+      are on the Pong chart.</li>
+    <li><b>Breakout: an update every 4 steps, not every step.</b> Algorithm 1 does a gradient step after every action. On this CPU that runs at ~45
       steps a second. Updating every 4th step (as DeepMind did from 2015 on) is ~4× faster per step, and each transition is still replayed
       many times.</li>
     <li><b>Filling in what the paper didn't say.</b> The 2013 paper doesn't give the discount, learning rate, RMSProp settings or how much random
-      play precedes learning. Those come from the 2015 Nature paper: γ = 0.99, lr = 2.5×10⁻⁴, 50,000 random steps first.</li>
-    <li><b>"Frames" read literally.</b> ε falls over the first million <i>emulator frames</i>, which is 250,000 agent steps at k = 4.</li>
-    <li><b>Smaller memory for Pong.</b> 500k transitions instead of 1M, to leave RAM for running both games at once. Breakout uses the full 1M.</li>
-    <li><b>Same as the paper:</b> network, preprocessing, frame skip, reward clipping, minibatch size, RMSProp, ε-greedy with ε = 0.05 for evaluation,
-      squared-error loss, one set of hyperparameters for every game (apart from Pong's target network).</li>
+      play precedes learning. For Breakout these come from the 2015 Nature paper: γ = 0.99, lr = 2.5×10⁻⁴, 50,000 random steps first.</li>
+    <li><b>"Frames" read literally.</b> For Breakout, ε falls over the first million <i>emulator frames</i>, which is 250,000 agent steps at k = 4.</li>
+    <li><b>Not one set of hyperparameters.</b> The paper used the same settings for every game. Here Pong and Breakout use different ones (see the
+      table under <a href="#algo">Algorithm 1</a>).</li>
+    <li><b>Same as the paper, for both games:</b> network, preprocessing, frame skip, reward clipping, minibatch size, squared-error loss,
+      ε-greedy with ε = 0.05 for evaluation.</li>
   </ul>
 </div></section>
 
@@ -547,7 +559,8 @@ footer { border-top: 1px solid var(--border); padding: 40px 0 64px; font-size: 1
   <h2>Three commands</h2>
 <pre>git clone https://github.com/amalmehta/AtariRL && cd AtariRL
 python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/python -m dqn.train --game pong --steps 1500000 --update-every 4 --eps-anneal-steps 250000 --target-update 10000</pre>
+.venv/bin/python -m dqn.train --game pong --steps 500000 --optimizer adam --lr 0.0001 --target-update 1000 --update-every 1 \
+    --replay-capacity 100000 --replay-start 10000 --eps-anneal-steps 100000 --eval-every 25000</pre>
   <p>Any of the paper's games works: <code>breakout</code>, <code>beam_rider</code>, <code>enduro</code>, <code>qbert</code>,
     <code>seaquest</code>, <code>space_invaders</code>. Then watch the result with <code>python -m dqn.play --run runs/pong --out pong</code>.
     Full instructions are in <a href="https://github.com/amalmehta/AtariRL/blob/main/docs/INSTRUCTIONS.md">INSTRUCTIONS.md</a>, and how it all
@@ -696,7 +709,7 @@ function drawResults() {
       series: [
         { name: "training (rolling mean)", color: css("--series-2"), points: r.train, width: 1.5 },
         { name: "evaluation", color: css("--series-1"), points: r.evals.map(e => [e[0], e[1]]) },
-        ...(r.no_target ? [{ name: "no target network", color: css("--series-3"), points: r.no_target.map(e => [e[0], e[1]]), width: 1.5 }] : []),
+        ...(r.baselines || []).map((b, i) => ({ name: b.name, color: css(i ? "--series-4" : "--series-3"), points: b.evals.map(e => [e[0], e[1]]), width: 1.5 })),
       ],
       refs: [{ y: p.dqn, label: "paper DQN " + p.dqn }, { y: p.human, label: "human " + p.human }, { y: p.random, label: "random " + p.random }],
       xLabel: "training steps",
@@ -712,19 +725,21 @@ function drawResults() {
 function fillResultsText() {
   if (!RESULTS) return;
   const tb = document.querySelector("#scoreTable tbody"); tb.replaceChildren();
-  const lens = [];
   for (const game of ["pong", "breakout"]) {
     const r = RESULTS[game]; if (!r) continue;
     const last = r.evals.length ? r.evals[r.evals.length - 1][0] : 0;
-    lens.push(`${GAME_NAMES[game]} ${fmtSteps(last)} steps (${fmtSteps(last * r.config.frame_skip)} frames, ${r.hours} h)`);
-    const tr = document.createElement("tr");
-    [GAME_NAMES[game], r.paper.random, r.paper.human, r.paper.dqn, r.best_eval == null ? "–" : r.best_eval.toFixed(1),
-     `${fmtSteps(last)} (${fmtSteps(last * r.config.frame_skip)} frames)`].forEach(v => {
-      const td = document.createElement("td"); td.textContent = v; tr.appendChild(td);
-    });
-    tb.appendChild(tr);
+    const row = (label, best, steps) => {
+      const tr = document.createElement("tr");
+      [label, r.paper.random, r.paper.human, r.paper.dqn, best == null ? "–" : best.toFixed(1),
+       `${fmtSteps(steps)} (${fmtSteps(steps * r.config.frame_skip)} frames)`].forEach(v => {
+        const td = document.createElement("td"); td.textContent = v; tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    };
+    row(GAME_NAMES[game] + (game === "pong" ? " (fast recipe)" : ""), r.best_eval, last);
+    (r.baselines || []).forEach(b => row(`${GAME_NAMES[game]} (${b.name})`, Math.max(...b.evals.map(e => e[1])), b.evals[b.evals.length - 1][0]));
+    document.getElementById("hpLen" + GAME_NAMES[game]).textContent = `${fmtSteps(last)} steps (${fmtSteps(last * r.config.frame_skip)} frames, ${r.hours} h)`;
   }
-  document.getElementById("hpLen").textContent = lens.join(" · ");
 }
 
 // ---------- value-function player ----------
@@ -768,7 +783,9 @@ function loadMind(game) {
   mindGame = game;
   document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.game === game));
   video.src = `assets/${game}.mp4`;
-  video.addEventListener("loadedmetadata", () => { if (video.currentTime === 0) video.currentTime = 1; }, { once: true });
+  video.addEventListener("loadedmetadata", () => {
+    if (video.currentTime === 0) video.currentTime = (MIND[game] && MIND[game].highlight_start) || 1;
+  }, { once: true });
   document.getElementById("mindPlay").textContent = "▶ Play";
   if (MIND[game] !== undefined) return drawMind();
   fetch(`assets/${game}_q.json`).then(r => r.ok ? r.json() : null).catch(() => null).then(d => {
@@ -777,7 +794,7 @@ function loadMind(game) {
       const cap = document.getElementById(game === "pong" ? "heroPongCap" : "heroBreakoutCap");
       cap.textContent = "";
       const b = document.createElement("b"); b.textContent = d.score; cap.append("score ", b);
-      if (game === "pong") fillTdExample(d);
+      if (game === "pong") { fillTdExample(d); seekHero("heroPong", d.highlight_start); }
     }
   });
 }
@@ -808,8 +825,18 @@ function redrawAll() { drawEps(); drawResults(); drawMind(); }
 fetch("assets/results.json").then(r => r.json()).then(d => { RESULTS = d; drawResults(); fillResultsText(); }).catch(() => {});
 fetch("assets/breakout_q.json").then(r => r.ok ? r.json() : null).catch(() => null).then(d => {
   MIND.breakout = d;
-  if (d) { const cap = document.getElementById("heroBreakoutCap"); const b = document.createElement("b"); b.textContent = d.score; cap.replaceChildren("score ", b); }
+  if (d) {
+    const cap = document.getElementById("heroBreakoutCap"); const b = document.createElement("b"); b.textContent = d.score; cap.replaceChildren("score ", b);
+    seekHero("heroBreakout", d.highlight_start);
+  }
 });
+function seekHero(id, t) {
+  // Skip an idle opening (e.g. Breakout waiting to serve) in the looping hero video.
+  const v = document.getElementById(id);
+  if (!t) return;
+  const go = () => { v.currentTime = t; };
+  if (v.readyState >= 1) go(); else v.addEventListener("loadedmetadata", go, { once: true });
+}
 drawEps();
 loadMind("pong");
 let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(redrawAll, 150); });

@@ -21,10 +21,18 @@ Check everything is wired up:
 ## Train
 
 ```bash
-.venv/bin/python -m dqn.train --game pong --steps 1500000 --update-every 4 --eps-anneal-steps 250000 --target-update 10000
+.venv/bin/python -m dqn.train --game pong --steps 500000 --optimizer adam --lr 0.0001 --target-update 1000 --update-every 1 --replay-capacity 100000 --replay-start 10000 --eps-anneal-steps 100000 --eval-every 25000
 ```
 
-This is the setting used for the published Pong run. It adds the 2015 paper's target network; without `--target-update`, Pong stayed at random-play level for 750k steps. For the exact paper settings (update every step, 10M steps), drop the flags:
+This is the fast-learning recipe used for the published Pong agent (best evaluation 17.2, after ~275k steps it started winning). With the paper's settings, Pong was still at random level after 850k steps on this CPU.
+
+The published Breakout run used the paper's settings, with updates every 4 steps:
+
+```bash
+.venv/bin/python -m dqn.train --game breakout --steps 3000000 --update-every 4 --eps-anneal-steps 250000
+```
+
+For the exact paper settings (update every step, 10M steps), drop the flags:
 
 ```bash
 .venv/bin/python -m dqn.train --game breakout
@@ -45,9 +53,10 @@ Useful flags (all optional):
 | `--eval-every` / `--eval-steps` | 50,000 / 10,000 | evaluation schedule |
 | `--target-update` | 0 | steps between target-network refreshes; 0 = no target network (2013) |
 | `--threads` | 4 | PyTorch CPU threads |
+| `--optimizer` | rmsprop | `rmsprop` (paper) or `adam` |
 | `--lr`, `--seed` | 2.5e-4, 0 | |
 
-Progress prints every 10,000 steps, plus an evaluation line every epoch. Logs go to `runs/<game>/episodes.csv` and `evals.csv`; weights to `best.pt` and `latest.pt`. Stop any time with Ctrl-C; the last epoch's weights are kept. A run can't be resumed (the replay memory lives in RAM), so for long runs start it somewhere that outlives your terminal, e.g. `screen -dmS pong caffeinate -i .venv/bin/python -m dqn.train ...`.
+Progress prints every 10,000 steps, plus an evaluation line every epoch. Logs go to `runs/<game>/episodes.csv` and `evals.csv`; weights to `best.pt` and `latest.pt`. Stop any time with Ctrl-C; the last epoch's weights are kept. A run can't be resumed (the replay memory lives in RAM), so for long runs start it somewhere that outlives your terminal: for example inside `screen` or `tmux`, with `caffeinate -i` in front of the command so the Mac doesn't sleep.
 
 ## Watch a trained agent
 

@@ -26,6 +26,13 @@ from dqn.env import CROP_SIZE, CROP_TOP, AtariEnv  # noqa: E402
 ASSETS = ROOT / "docs" / "assets"
 GAMES = ["pong", "breakout"]
 
+# Earlier runs kept for comparison: runs/<folder> -> label. Both used the paper's
+# RMSProp settings and never learned Pong; the published Pong run is the fast recipe.
+BASELINES = {
+    "pong": [("pong-no-target", "paper settings, no target network"),
+             ("pong-target", "paper settings + target network")],
+}
+
 # Table 1 of Mnih et al. 2013 (average total reward, eps = 0.05).
 PAPER = {
     "pong": {"random": -20.7, "human": -3, "dqn": 20, "dqn_best": 21},
@@ -69,10 +76,11 @@ def build_results():
             "best_eval": max((e["eval_score"] for e in evals), default=None),
             "paper": PAPER[game],
         }
-        baseline = ROOT / "runs" / f"{game}-no-target" / "evals.csv"
-        if baseline.exists():  # the first Pong run, faithful to 2013, that never learned
-            results[game]["no_target"] = [[int(e["step"]), e["eval_score"], e["avg_max_q"]]
-                                          for e in read_csv(baseline)]
+        results[game]["baselines"] = [
+            {"name": label, "evals": [[int(e["step"]), e["eval_score"], e["avg_max_q"]]
+                                      for e in read_csv(ROOT / "runs" / folder / "evals.csv")]}
+            for folder, label in BASELINES.get(game, [])
+            if (ROOT / "runs" / folder / "evals.csv").exists()]
     (ASSETS / "results.json").write_text(json.dumps(results, separators=(",", ":")))
     return results
 
@@ -107,14 +115,19 @@ def build_readme_chart(results):
     fig, axes = plt.subplots(1, len(results), figsize=(5 * len(results), 3.2), squeeze=False)
     for ax, (game, r) in zip(axes[0], results.items()):
         steps = [e[0] / 1e6 for e in r["evals"]]
-        if r.get("no_target"):
-            ax.plot([e[0] / 1e6 for e in r["no_target"]], [e[1] for e in r["no_target"]],
-                    color="#a3a29c", lw=1.5, label="no target network")
-        ax.plot(steps, [e[1] for e in r["evals"]], color="#2a78d6", lw=2, label="this agent (ε = 0.05)")
+        for b, color in zip(r["baselines"], ["#a3a29c", "#eb6834"]):
+            ax.plot([e[0] / 1e6 for e in b["evals"]], [e[1] for e in b["evals"]],
+                    color=color, lw=1.5, label=b["name"])
+        ax.plot(steps, [e[1] for e in r["evals"]], color="#2a78d6", lw=2, label="published agent")
+        if r["baselines"]:
+            ax.legend(fontsize=7, frameon=False, loc="center right")
         ax.axhline(r["paper"]["dqn"], color="#52514e", ls="--", lw=1)
         ax.axhline(r["paper"]["random"], color="#a3a29c", ls=":", lw=1)
-        ax.text(0, r["paper"]["dqn"], " paper DQN", va="bottom", fontsize=8, color="#52514e")
-        ax.text(0, r["paper"]["random"], " random", va="bottom", fontsize=8, color="#7a7974")
+        ref = ax.get_yaxis_transform()  # x in axes fraction, y in data units
+        ax.text(1, r["paper"]["dqn"], "paper DQN ", va="bottom", ha="right", fontsize=8,
+                color="#52514e", transform=ref)
+        ax.text(1, r["paper"]["random"], "random ", va="bottom", ha="right", fontsize=8,
+                color="#7a7974", transform=ref)
         ax.set_title(game.title(), loc="left", fontsize=11)
         ax.set_xlabel("training steps (millions)", fontsize=9)
         ax.set_ylabel("score per episode", fontsize=9)
